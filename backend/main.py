@@ -185,6 +185,27 @@ async def websocket_endpoint(websocket: WebSocket, department: str, token: str):
 
 # ---- RUTAS WEBHOK DE META (WhatsApp) ----
 
+def download_whatsapp_media(media_id: str) -> str:
+    """Descarga el binario de Meta y lo guarda en static/media"""
+    os.makedirs("static/media", exist_ok=True)
+    meta_url = f"https://graph.facebook.com/v17.0/{media_id}"
+    headers = {"Authorization": f"Bearer {WHATSAPP_TOKEN}"}
+    
+    try:
+        res = requests.get(meta_url, headers=headers)
+        if res.status_code == 200:
+            media_url = res.json().get("url")
+            media_res = requests.get(media_url, headers=headers, stream=True)
+            if media_res.status_code == 200:
+                file_path = f"static/media/{media_id}.jpg"
+                with open(file_path, 'wb') as f:
+                    for chunk in media_res.iter_content(1024):
+                        f.write(chunk)
+                return f"/static/media/{media_id}.jpg"
+    except Exception as e:
+        print(f"Error descargando media: {e}")
+    return ""
+
 @app.get("/webhook")
 async def verify_webhook(request: Request):
     """
@@ -232,9 +253,24 @@ async def receive_message(request: Request):
                     if msg_type == "text":
                         text_body = msg.get("text", {}).get("body", "")
                         print(f"Mensaje recibido de {phone_number_from}: {text_body}")
-                        
                         # 3. Clasificación y asignación en tiempo real!
                         await classify_and_route_message(phone_number_from, text_body)
+                        
+                    elif msg_type == "image":
+                        media_id = msg.get("image", {}).get("id")
+                        caption = msg.get("image", {}).get("caption", "📸 (Imagen adjunta)")
+                        print(f"Imagen recibida de {phone_number_from}. Intentando descargar...")
+                        
+                        local_path = download_whatsapp_media(media_id)
+                        if local_path:
+                            text_body = f"[IMAGE]{local_path}[/IMAGE] {caption}"
+                        else:
+                            text_body = caption
+                            
+                        await classify_and_route_message(phone_number_from, text_body)
+                        
+                    elif msg_type == "audio":
+                        print(f"Audio recibido (ignorado por ahora).")
                     else:
                         print(f"Mensaje de tipo {msg_type} recibido, ignorado por ahora.")
                         

@@ -721,6 +721,19 @@
             return d.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' });
         }
 
+        function parseMessageText(rawText) {
+            if (!rawText) return { text: "", image: null };
+            const start = rawText.indexOf("[IMAGE]");
+            const end = rawText.indexOf("[/IMAGE]");
+            if (start !== -1 && end !== -1 && end > start) {
+                return {
+                    image: rawText.substring(start + 7, end).trim(),
+                    text: rawText.substring(end + 8).trim()
+                };
+            }
+            return { text: rawText, image: null };
+        }
+
         function addIncomingChat(data, isHistory = false) {
             const list = document.getElementById('chatList');
             if (document.getElementById('emptyState')) document.getElementById('emptyState').remove();
@@ -771,7 +784,7 @@
                                 <h4 class="text-[14px] font-bold text-white truncate flex items-center">${displayName} ${aiBadge}</h4>
                                 ${newBadge}
                             </div>
-                            <p class="text-xs text-slate-400 truncate mb-1.5 leading-relaxed">${data.text}</p>
+                            <p class="text-xs text-slate-400 truncate mb-1.5 leading-relaxed">${parseMessageText(data.text).image ? '📸 ' + (parseMessageText(data.text).text || 'Imagen adjunta') : data.text}</p>
                             <div class="flex flex-col items-start w-full gap-y-1">
                                 <span class="text-[9px] font-bold ${bgTag} px-2 py-0.5 rounded-full border text-slate-300 flex items-center uppercase tracking-wider whitespace-nowrap">
                                     <i class="fa-solid ${icon} ${color} mr-1"></i> ${data.department}
@@ -879,12 +892,17 @@
                 window.currentChatLastDate = dateLabel;
             }
 
+            const parsedMsg = parseMessageText(msgData.text);
+            const mediaHtml = parsedMsg.image ? `<a href="${parsedMsg.image}" target="_blank"><img src="${parsedMsg.image}" class="max-w-[160px] sm:max-w-[220px] rounded-lg mb-1.5 cursor-pointer hover:opacity-90 object-cover"></a>` : '';
+            const textHtml = parsedMsg.text ? `<div>${parsedMsg.text}</div>` : '';
+            const bubbleHtml = mediaHtml + textHtml;
+
             if (msgData.direction === "outbound") {
                 container.insertAdjacentHTML('beforeend', `
                     <div class="flex flex-col items-end space-y-1">
                         <span class="text-[11px] font-bold text-slate-500 mr-2">Agente</span>
                         <div class="px-4 py-3 bg-blue-600 rounded-2xl rounded-tr-sm text-[15px] leading-relaxed text-white shadow-md shadow-blue-900/20 relative w-fit max-w-[85%]">
-                            ${msgData.text}
+                            ${bubbleHtml}
                             <div class="absolute top-0 -right-2 w-4 h-4 bg-blue-600 -skew-x-12 border-none -z-10 rounded-tr-sm"></div>
                         </div>
                         <span class="text-[10px] text-slate-500 mt-1 mr-2 font-medium">${formatTime(msgData.created_at)}</span>
@@ -902,7 +920,7 @@
                         <div class="flex flex-col items-start w-full">
                             <span class="text-[11px] font-bold text-slate-500 mb-1 ml-2 opacity-0 group-hover:opacity-100 transition-opacity">+${msgData.from}</span>
                             <div class="p-3.5 bg-slate-800 rounded-2xl rounded-bl-sm text-[15px] leading-relaxed text-slate-200 border border-slate-700 shadow-md shadow-black/20 relative">
-                                ${msgData.text}
+                                ${bubbleHtml}
                                 <div class="absolute bottom-0 -left-2 w-4 h-4 bg-slate-800 -skew-x-12 border-l border-b border-slate-700 -z-10 rounded-bl-sm"></div>
                             </div>
                             <span class="text-[10px] text-slate-500 mt-1 ml-2 font-medium">${formatTime(msgData.created_at)}</span>
