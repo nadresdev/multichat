@@ -11,8 +11,7 @@ from typing import Annotated
 from jose import jwt, JWTError
 from auth import SECRET_KEY, ALGORITHM
 from routers import auth as auth_router
-from google import genai
-from google.genai import types
+import google.generativeai as genai
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from db.models import Base, engine, SessionLocal, Contact, Message, Ticket
@@ -37,7 +36,7 @@ class ClassificationResponse(BaseModel):
     suggested_reply: str
 
 # Inicializamos el cliente de Gemini. Tomará la clave API desde GEMINI_API_KEY
-client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
+genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
 system_instruction = '''Eres un asistente inteligente para una empresa.
 Tu objetivo es doble:
 1. Analizar el mensaje del usuario y clasificarlo en un `department`. Debe ser ESTRICTAMENTE una de las siguientes opciones (en minúscula):
@@ -46,6 +45,8 @@ Tu objetivo es doble:
 - "recepcion" -> Para saludos generales, preguntas sobre horarios, u otra consulta que no encaje en ventas/soporte.
 
 2. Generar un `suggested_reply`: Un borrador MUY breve (1 sola oración) de cortesía que el agente pueda usar para responderle al cliente según la intención.'''
+
+model = genai.GenerativeModel('gemini-2.5-flash', system_instruction=system_instruction)
 
 app.include_router(auth_router.router)
 app.mount("/static", StaticFiles(directory="static"), name="static")
@@ -274,11 +275,9 @@ async def classify_and_route_message(phone_from: str, text: str):
             await manager.broadcast(auto_reply_payload, "todos")
 
             try:
-                response = client.models.generate_content(
-                    model='gemini-2.5-flash',
-                    contents=text,
-                    config=types.GenerateContentConfig(
-                        system_instruction=system_instruction,
+                response = model.generate_content(
+                    text,
+                    generation_config=genai.GenerationConfig(
                         temperature=0.0,
                         response_mime_type="application/json",
                         response_schema=ClassificationResponse
