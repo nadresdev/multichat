@@ -276,12 +276,12 @@ async def classify_and_route_message(phone_from: str, text: str):
             await manager.broadcast(auto_reply_payload, "todos")
 
             try:
+                prompt_text = f"Mensaje del cliente: {text}\n RESPONDE ESTRICTAMENTE EN JSON con formato: {{'department': 'ventas|soporte|recepcion', 'suggested_reply': 'un texto breve'}}"
                 response = model.generate_content(
-                    text,
+                    prompt_text,
                     generation_config=genai.GenerationConfig(
                         temperature=0.0,
-                        response_mime_type="application/json",
-                        response_schema=ClassificationResponse
+                        response_mime_type="application/json"
                     )
                 )
                 
@@ -295,7 +295,9 @@ async def classify_and_route_message(phone_from: str, text: str):
                     department = "recepcion"
                     
             except Exception as e:
+                import traceback
                 print(f"Fallback. Error llamando a Gemini: {e}")
+                print(traceback.format_exc())
                 
     finally:
         db.close()
@@ -346,7 +348,8 @@ def get_department_history(department: str, db: Session = Depends(get_db)):
                     "text": msg.text,
                     "department": c.assigned_department,
                     "direction": msg.direction,
-                    "observation": c.observation if msg.direction == "inbound" else ""
+                    "observation": c.observation if msg.direction == "inbound" else "",
+                    "created_at": msg.created_at.isoformat() if msg.created_at else ""
                 })
             
             # Agregamos esta conversación a la lista global. 
@@ -522,13 +525,14 @@ def send_text_to_whatsapp(phone_number: str, text: str, department: str):
     }
     
     try:
-        r = requests.post(meta_url, headers=headers, json=data)
-        if r.status_code != 200:
-            print(f"Error Meta API: {r.text}")
-            raise HTTPException(status_code=400, detail="Error enviando el mensaje a Whatsapp")
-            
-        print(f"[WHATSAPP ENVIADO EXITOSAMENTE] A {phone_number}: {text}")
-        return {"status": "success", "simulated": False, "created_at": msg_timestamp.isoformat() if msg_timestamp else ""}
+        response = requests.post(meta_url, headers=headers, json=data)
+    
+        if response.status_code in [200, 201]:
+            print(f"Mensaje enviado correctamente a {phone_number}")
+            return {"status": "success", "meta_id": response.json().get("messages", [{}])[0].get("id"), "created_at": msg_timestamp.isoformat() if msg_timestamp else ""}
+        else:
+            print(f"Error de Meta API [{response.status_code}]: {response.text}")
+            raise HTTPException(status_code=500, detail=response.text)
         
     except requests.exceptions.RequestException as e:
         print(f"Error de conexión con Meta: {e}")
