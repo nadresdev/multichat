@@ -1,6 +1,7 @@
 import json
 import os
 import requests
+import asyncio
 from typing import Dict, List
 from fastapi import FastAPI, Request, HTTPException, WebSocket, WebSocketDisconnect, Depends
 from fastapi.responses import HTMLResponse
@@ -37,14 +38,16 @@ class ClassificationResponse(BaseModel):
 
 # Inicializamos el cliente de Gemini. Tomará la clave API desde GEMINI_API_KEY
 genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
-system_instruction = '''Eres un asistente inteligente para una empresa.
-Tu objetivo es doble:
-1. Analizar el mensaje del usuario y clasificarlo en un `department`. Debe ser ESTRICTAMENTE una de las siguientes opciones (en minúscula):
-- "ventas" -> Si el cliente muestra intención de comprar, pregunta por un producto, precios o promociones.
-- "soporte" -> Si el cliente reporta un fallo, un producto dañado, necesita ayuda técnica, o tiene un error.
-- "recepcion" -> Para saludos generales, preguntas sobre horarios, u otra consulta que no encaje en ventas/soporte.
+system_instruction = '''Eres un asistente inteligente.
+Tu objetivo es triple:
+1. Clasificar el mensaje en un `department` ESTRICTAMENTE como una de (en minúscula):
+- "ventas" -> Si pregunta por precios, compra o productos.
+- "soporte" -> Si reporta un fallo, producto dañado o pide ayuda técnica.
+- "recepcion" -> Saludos, horarios u otra consulta general.
 
-2. Generar un `suggested_reply`: Un borrador MUY breve (1 sola oración) de cortesía que el agente pueda usar para responderle al cliente según la intención.'''
+2. Generar un `auto_reply`: Un saludo inicial empático, humano y directo acorde al mensaje del cliente que se le enviará tras unos segundos simulando ser escrito. Ej: "¡Hola! Comprendo tu problema técnico, conectando con Soporte..." o "¡Hola! Con gusto te paso nuestra lista de precios..."
+
+3. Generar un `suggested_reply`: Un borrador MUY breve (1 oración) para el agente humano.'''
 
 model = genai.GenerativeModel('gemini-2.5-flash', system_instruction=system_instruction)
 
@@ -242,72 +245,51 @@ async def receive_message(request: Request):
 
 async def classify_and_route_message(phone_from: str, text: str):
     """
-    Verifica si el contacto ya tiene departamento. Si no, usa IA, lo asigna 
-    y lo envía por WebSocket al frontend.
+    Verifica si el contacto ya tiene departamento. Si no, usa IA, lo asigna,
+    y luego simula escritura de un auto-saludo y envía los mensajes.
     """
-    department = "recepcion" # Default en caso de fallo de IA
+    department = "recepcion"
     suggested_reply = ""
     observation = ""
+    is_new = False
+    auto_reply = "¡Hola! Bienvenido a MultiChat. Soy tu asistente virtual. Estoy analizando tu solicitud para derivarte..."
     
     db = SessionLocal()
     try:
         contact = db.query(Contact).filter(Contact.phone_number == phone_from).first()
-        # Si ya existe y tiene departamento reasignado/asginado, omitimos la IA
         if contact and contact.assigned_department:
             department = contact.assigned_department
             observation = contact.observation or ""
-            print(f"[{phone_from}] Retornando cliente conocido a su área asignada: {department.upper()}")
+            print(f"[{phone_from}] Retornando cliente conocido a su área: {department.upper()}")
         else:
-            # Cliente nuevo o sin departamento, corremos Inteligencia Artificial
-            print(f"[{phone_from}] Analizando mensaje de cliente sin asignar con IA: '{text}'...")
-            
-            # --- AUTO-SALUDO IA ---
-            saludo_ia = "¡Hola! Bienvenido a MultiChat. Soy tu asistente virtual. Estoy analizando tu solicitud para derivarte al área correcta..."
-            auto_reply_result = send_text_to_whatsapp(phone_from, saludo_ia, "recepcion")
-            
-            auto_reply_payload = {
-                "from": phone_from,
-                "text": saludo_ia,
-                "department": "recepcion",
-                "direction": "outbound",
-                "created_at": auto_reply_result.get("created_at", "") if auto_reply_result else ""
-            }
-            await manager.broadcast(auto_reply_payload, "recepcion")
-            await manager.broadcast(auto_reply_payload, "todos")
-
-            try:
-                prompt_text = f"Mensaje del cliente: {text}\n RESPONDE ESTRICTAMENTE EN JSON con formato: {{'department': 'ventas|soporte|recepcion', 'suggested_reply': 'un texto breve'}}"
-                response = model.generate_content(
-                    prompt_text,
-                    generation_config=genai.GenerationConfig(
-                        temperature=0.0,
-                        response_mime_type="application/json"
-                    )
-                )
-                
-                result = json.loads(response.text)
-                department_candidate = result.get("department", "").strip().lower()
-                suggested_reply = result.get("suggested_reply", "")
-                
-                if department_candidate in ["ventas", "soporte", "recepcion"]:
-                    department = department_candidate
-                else:
-                    department = "recepcion"
-                    
-            except Exception as e:
-                import traceback
-                print(f"Fallback. Error llamando a Gemini: {e}")
-                print(traceback.format_exc())
-                
+            is_new = True
     finally:
         db.close()
+        
+    if is_new:
+        print(f"[{phone_from}] Analizando mensaje de cliente sin asignar con IA: '{text}'...")
+        try:
+            prompt_text = f"Mensaje del cliente: {text}\n RESPONDE ESTRICTAMENTE EN JSON con formato: {{'department': 'ventas|soporte|recepcion', 'auto_reply': 'tu saludo inteligente aqui', 'suggested_reply': 'un texto breve'}}"
+            response = model.generate_content(
+                prompt_text,
+                generation_config=genai.GenerativeConfig(
+                    temperature=0.0,
+                    response_mime_type="application/json"
+                )
+            )
+            result = json.loads(response.text)
+            department_candidate = result.get("department", "").strip().lower()
+            if department_candidate in ["ventas", "soporte", "recepcion"]:
+                department = department_candidate
+            auto_reply = result.get("auto_reply", auto_reply)
+            suggested_reply = result.get("suggested_reply", "")
+        except Exception as e:
+            print(f"Fallback. Error llamando a Gemini: {e}")
             
-    print(f"[IA-RUTEO] Asignando mensaje de {phone_from} a {department.upper()}")
+    print(f"[IA-RUTEO] Asignando mensaje a {department.upper()}")
     
-    # 🌟 NUEVO: Persistimos el mensaje finalizado en SQLite y obtenemos su fecha
+    # 1. Guardar mensaje entrante INMEDIATAMENTE y enviarlo al dashboard
     msg_timestamp = save_message_to_db(phone_from, text, "inbound", department)
-    
-    # Preparar el paquete de datos para mandar al frontend
     message_payload = {
         "from": phone_from,
         "text": text,
@@ -316,11 +298,23 @@ async def classify_and_route_message(phone_from: str, text: str):
         "observation": observation,
         "created_at": msg_timestamp.isoformat() if msg_timestamp else ""
     }
-    
-    # Enviar al Frontend por WebSocket
     await manager.broadcast(message_payload, department)
-    # 🌟 NUEVO: Mándalo también a la sala "todos" para los Admins
     await manager.broadcast(message_payload, "todos")
+
+    # 2. Si es cliente nuevo, esperar 3-4s y enviar auto-saludo inteligente
+    if is_new:
+        print(f"[{phone_from}] Simulando escritura de auto-respuesta (3.5 seg)...")
+        await asyncio.sleep(3.5)
+        auto_reply_result = send_text_to_whatsapp(phone_from, auto_reply, department)
+        auto_reply_payload = {
+            "from": phone_from,
+            "text": auto_reply,
+            "department": department,
+            "direction": "outbound",
+            "created_at": auto_reply_result.get("created_at", "") if auto_reply_result else ""
+        }
+        await manager.broadcast(auto_reply_payload, department)
+        await manager.broadcast(auto_reply_payload, "todos")
 
 
 # ---- APIs PARA HISTORIAL Y CRM ----
