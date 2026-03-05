@@ -10,6 +10,8 @@ from fastapi.staticfiles import StaticFiles
 from dotenv import load_dotenv
 from typing import Annotated
 from jose import jwt, JWTError
+from PIL import Image
+import io
 from auth import SECRET_KEY, ALGORITHM
 from routers import auth as auth_router
 import google.generativeai as genai
@@ -198,9 +200,23 @@ def download_whatsapp_media(media_id: str) -> str:
             media_res = requests.get(media_url, headers=headers, stream=True)
             if media_res.status_code == 200:
                 file_path = f"static/media/{media_id}.jpg"
-                with open(file_path, 'wb') as f:
-                    for chunk in media_res.iter_content(1024):
-                        f.write(chunk)
+                
+                # Leemos los bytes crudos y los cargamos en PIL para comprimir
+                image_data = b""
+                for chunk in media_res.iter_content(1024):
+                    image_data += chunk
+                
+                img = Image.open(io.BytesIO(image_data))
+                
+                # Redimensionar la imagen si es muy grande (ej. maximo 1024px de alto o ancho)
+                img.thumbnail((1024, 1024))
+                
+                # Guardamos como JPEG comprimido a 70% de calidad, descartando canal alpha si existe
+                if img.mode in ("RGBA", "P"):
+                    img = img.convert("RGB")
+                    
+                img.save(file_path, "JPEG", optimize=True, quality=70)
+                
                 return f"/static/media/{media_id}.jpg"
     except Exception as e:
         print(f"Error descargando media: {e}")
