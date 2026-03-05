@@ -403,57 +403,108 @@
                                 <h2 class="text-xl font-bold text-white"><i class="fa-solid fa-server text-indigo-400 mr-2"></i> Dashboard Global</h2>
                                 <p class="text-sm text-slate-400 mt-1">Supervisión de chats activos y atención de Tickets en escalamiento.</p>
                             </div>
-                            <button onclick="location.reload()" class="text-sm text-slate-300 hover:text-white bg-slate-700 px-4 py-2 rounded-lg border border-slate-600 transition-colors"><i class="fa-solid fa-arrow-left mr-2"></i> Volver a Mi Área</button>
+                            <div class="flex flex-col items-end space-y-2">
+                                <div class="flex items-center space-x-3">
+                                    <button onclick="clearDatabase()" class="text-xs text-red-400 hover:text-white bg-red-500/10 hover:bg-red-500/30 px-3 py-1.5 rounded-lg border border-red-500/30 transition-colors shadow-sm"><i class="fa-solid fa-trash-can mr-2"></i> Vaciar BD</button>
+                                    <button onclick="location.reload()" class="text-sm text-slate-300 hover:text-white bg-slate-700 px-4 py-2 rounded-lg border border-slate-600 transition-colors"><i class="fa-solid fa-arrow-left mr-2"></i> Volver a Mi Área</button>
+                                </div>
+                            </div>
                         </div>
                         
-                        <!-- TABLA TICKETS -->
-                        <div class="px-6 pt-2 shrink-0">
-                            <h3 class="text-emerald-400 font-bold mb-3 flex items-center uppercase text-sm tracking-wider"><i class="fa-solid fa-ticket mr-2"></i> Tickets Abiertos en Escalamiento</h3>
-                        </div>
-                        <div class="flex-none overflow-auto px-6 max-h-[40%] rounded-lg">
-                            <table class="w-full text-left border-collapse bg-slate-900/40 rounded-lg overflow-hidden border border-slate-700/50">
-                                <thead>
-                                    <tr class="bg-slate-900/80 text-slate-400 text-[10px] uppercase tracking-wider border-b border-slate-700">
-                                        <th class="px-4 py-3 font-semibold">TKT</th>
-                                        <th class="px-4 py-3 font-semibold">Cte / Teléfono</th>
-                                        <th class="px-4 py-3 font-semibold">Nivel Requerido</th>
-                                        <th class="px-4 py-3 font-semibold w-1/3">Descripción del Problema</th>
-                                        <th class="px-4 py-3 font-semibold">Fecha de Creación</th>
-                                        <th class="px-4 py-3 font-semibold text-right">Acciones</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    ${tTbody}
-                                </tbody>
-                            </table>
+                        <!-- PESTAÑAS -->
+                        <div class="px-6 flex space-x-4 border-b border-slate-700/50 shrink-0">
+                            <button onclick="switchAdminTab('chats')" id="tabBtn-chats" class="px-4 py-3 text-sm font-bold border-b-2 border-blue-500 text-blue-400 focus:outline-none transition-colors"><i class="fa-solid fa-comments mr-2"></i> Chats Activos</button>
+                            <button onclick="switchAdminTab('tickets')" id="tabBtn-tickets" class="px-4 py-3 text-sm font-bold border-b-2 border-transparent text-slate-400 hover:text-slate-200 focus:outline-none transition-colors"><i class="fa-solid fa-ticket mr-2"></i> Tickets Abiertos</button>
                         </div>
 
-                        <!-- TABLA CHATS -->
-                        <div class="px-6 pt-2 mt-4 shrink-0">
-                            <h3 class="text-blue-400 font-bold mb-3 flex items-center uppercase text-sm tracking-wider"><i class="fa-solid fa-comments mr-2"></i> Chats Activos</h3>
-                        </div>
-                        <div class="flex-1 overflow-auto px-6 pb-6">
-                            <table class="w-full text-left border-collapse bg-slate-900/40 border border-slate-700/50">
-                                <thead>
-                                    <tr class="bg-slate-900/80 text-slate-400 text-[10px] uppercase tracking-wider border-b border-slate-700">
-                                        <th class="px-4 py-3 font-semibold">Cliente</th>
-                                        <th class="px-4 py-3 font-semibold">Teléfono</th>
-                                        <th class="px-4 py-3 font-semibold">Área Actual</th>
-                                        <th class="px-4 py-3 font-semibold">Último Mensaje</th>
-                                        <th class="px-4 py-3 font-semibold">Observaciones Activas</th>
-                                        <th class="px-4 py-3 font-semibold">Hora Mod.</th>
-                                        <th class="px-4 py-3 font-semibold text-right">Acciones</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    ${tbody}
-                                </tbody>
-                            </table>
+                        <!-- CONTENIDO PESTAÑAS -->
+                        <div class="flex-1 overflow-hidden relative">
+                            <!-- TABLA CHATS -->
+                            <div id="adminTab-chats" class="absolute inset-0 overflow-auto px-6 pb-6 transition-opacity duration-300 z-10">
+                                <table class="w-full text-left border-collapse bg-slate-900/40 border border-slate-700/50 mt-2">
+                                    <thead>
+                                        <tr class="bg-slate-900/80 text-slate-400 text-[10px] uppercase tracking-wider border-b border-slate-700">
+                                            <th class="px-4 py-3 font-semibold">Cliente</th>
+                                            <th class="px-4 py-3 font-semibold">Teléfono</th>
+                                            <th class="px-4 py-3 font-semibold">Área Actual</th>
+                                            <th class="px-4 py-3 font-semibold">Último Mensaje</th>
+                                            <th class="px-4 py-3 font-semibold">Observaciones Activas</th>
+                                            <th class="px-4 py-3 font-semibold">Hora Mod.</th>
+                                            <th class="px-4 py-3 font-semibold text-right">Acciones</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        ${tbody}
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            <!-- TABLA TICKETS -->
+                            <div id="adminTab-tickets" class="absolute inset-0 overflow-auto px-6 pb-6 opacity-0 pointer-events-none transition-opacity duration-300 z-0">
+                                <table class="w-full text-left border-collapse bg-slate-900/40 rounded-lg overflow-hidden border border-slate-700/50 mt-2">
+                                    <thead>
+                                        <tr class="bg-slate-900/80 text-slate-400 text-[10px] uppercase tracking-wider border-b border-slate-700">
+                                            <th class="px-4 py-3 font-semibold">TKT</th>
+                                            <th class="px-4 py-3 font-semibold">Cte / Teléfono</th>
+                                            <th class="px-4 py-3 font-semibold">Nivel Requerido</th>
+                                            <th class="px-4 py-3 font-semibold w-1/3">Descripción del Problema</th>
+                                            <th class="px-4 py-3 font-semibold">Fecha de Creación</th>
+                                            <th class="px-4 py-3 font-semibold text-right">Acciones</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        ${tTbody}
+                                    </tbody>
+                                </table>
+                            </div>
                         </div>
                     </div>
                 `;
             } catch (e) {
                 console.error(e);
+            }
+        };
+
+        window.switchAdminTab = function (tab) {
+            const btnChats = document.getElementById('tabBtn-chats');
+            const btnTickets = document.getElementById('tabBtn-tickets');
+            const tabChats = document.getElementById('adminTab-chats');
+            const tabTickets = document.getElementById('adminTab-tickets');
+
+            if (tab === 'chats') {
+                btnChats.className = "px-4 py-3 text-sm font-bold border-b-2 border-blue-500 text-blue-400 focus:outline-none transition-colors";
+                btnTickets.className = "px-4 py-3 text-sm font-bold border-b-2 border-transparent text-slate-400 hover:text-slate-200 focus:outline-none transition-colors";
+
+                tabChats.classList.replace('opacity-0', 'opacity-100');
+                tabChats.classList.replace('pointer-events-none', 'z-10');
+
+                tabTickets.classList.replace('opacity-100', 'opacity-0');
+                tabTickets.classList.replace('z-10', 'pointer-events-none');
+            } else {
+                btnTickets.className = "px-4 py-3 text-sm font-bold border-b-2 border-emerald-500 text-emerald-400 focus:outline-none transition-colors";
+                btnChats.className = "px-4 py-3 text-sm font-bold border-b-2 border-transparent text-slate-400 hover:text-slate-200 focus:outline-none transition-colors";
+
+                tabTickets.classList.replace('opacity-0', 'opacity-100');
+                tabTickets.classList.replace('pointer-events-none', 'z-10');
+
+                tabChats.classList.replace('opacity-100', 'opacity-0');
+                tabChats.classList.replace('z-10', 'pointer-events-none');
+            }
+        };
+
+        window.clearDatabase = async function () {
+            if (!confirm("⚠️ ADVERTENCIA: Esta acción es IRREVERSIBLE. Se borrarán todos los chats, tickets y contactos de la base de datos demostrativa. ¿Deseas continuar?")) return;
+
+            try {
+                const res = await fetch('/api/admin/clear_db', { method: 'DELETE' });
+                if (res.ok) {
+                    alert('Base de Datos limpiada exitosamente.');
+                    location.reload();
+                } else {
+                    alert('Error limpiando la BD.');
+                }
+            } catch (error) {
+                console.error("Error vaciando DB:", error);
             }
         };
 

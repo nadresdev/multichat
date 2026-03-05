@@ -376,6 +376,19 @@ def get_all_active_conversations(db: Session = Depends(get_db)):
         })
     return result
 
+@app.delete("/api/admin/clear_db")
+def clear_database_records(db: Session = Depends(get_db)):
+    """Borra todos los mensajes, tickets y contactos de la DB (Para Demos)"""
+    try:
+        db.query(Message).delete()
+        db.query(Ticket).delete()
+        db.query(Contact).delete()
+        db.commit()
+        return {"status": "success", "message": "Base de datos purgada correctamente."}
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+
 @app.post("/api/contacts/{phone}/reassign")
 async def reassign_conversation(phone: str, payload: ReassignRequest, db: Session = Depends(get_db)):
     contact = db.query(Contact).filter(Contact.phone_number == phone).first()
