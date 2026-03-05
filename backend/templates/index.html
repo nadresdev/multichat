@@ -1043,13 +1043,16 @@
                     injectMessageBubble({ direction: "outbound", text: text, from: activeChatPhone, created_at: dataRes.created_at });
 
                     // Asegurarnos de guardar también este outbound en el history del elemento sidebar por si lo deseleccionan
-                    const sidebarEl = document.getElementById(`chat - ${activeChatPhone}`);
+                    const sidebarEl = document.getElementById(`chat-${activeChatPhone}`);
                     if (sidebarEl && sidebarEl.messagesHistory) {
                         sidebarEl.messagesHistory.push({ direction: "outbound", text: text, from: activeChatPhone, name: sidebarEl.querySelector('#headerContactName')?.innerText, created_at: dataRes.created_at });
                     }
 
                 } else {
-                    alert("Error enviando el mensaje. Verifica tus credenciales de Meta.");
+                    let errDetail = "Verifica tus credenciales de Meta.";
+                    try { const errJson = await res.json(); errDetail = errJson.detail || errDetail; } catch (e) { }
+                    alert("Error enviando el mensaje:\n" + errDetail);
+                    console.error("[META ERROR]", errDetail);
                 }
             } catch (e) {
                 console.error("Error:", e);

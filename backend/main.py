@@ -324,7 +324,7 @@ async def classify_and_route_message(phone_from: str, text: str):
             prompt_text = f"Mensaje del cliente: {text}\n RESPONDE ESTRICTAMENTE EN JSON con formato: {{'department': 'ventas|soporte|recepcion', 'auto_reply': 'tu saludo inteligente aqui', 'suggested_reply': 'un texto breve'}}"
             response = model.generate_content(
                 prompt_text,
-                generation_config=genai.GenerativeConfig(
+                generation_config=genai.GenerationConfig(
                     temperature=0.0,
                     response_mime_type="application/json"
                 )
@@ -544,7 +544,10 @@ def close_ticket(ticket_id: int, db: Session = Depends(get_db)):
 @app.post("/api/send")
 def api_send_message_to_whatsapp(payload: SendMessageRequest, db: Session = Depends(get_db)):
     """Envia mensaje a Whatsapp usando Graph API desde petición del front (Agente)"""
-    return send_text_to_whatsapp(payload.phone_number, payload.text, payload.department)
+    result = send_text_to_whatsapp(payload.phone_number, payload.text, payload.department)
+    if result.get("status") == "error":
+        raise HTTPException(status_code=500, detail=result.get("detail", "Error de Meta"))
+    return result
 
 def send_text_to_whatsapp(phone_number: str, text: str, department: str):
     """Lógica central para enviar un mensaje saliente a través de Graph API y guardarlo"""
@@ -577,9 +580,10 @@ def send_text_to_whatsapp(phone_number: str, text: str, department: str):
             print(f"Mensaje enviado correctamente a {phone_number}")
             return {"status": "success", "meta_id": response.json().get("messages", [{}])[0].get("id"), "created_at": msg_timestamp.isoformat() if msg_timestamp else ""}
         else:
-            print(f"Error de Meta API [{response.status_code}]: {response.text}")
-            raise HTTPException(status_code=500, detail=response.text)
+            err_msg = response.text
+            print(f"Error de Meta API [{response.status_code}]: {err_msg}")
+            return {"status": "error", "detail": err_msg}
         
     except requests.exceptions.RequestException as e:
         print(f"Error de conexión con Meta: {e}")
-        raise HTTPException(status_code=500, detail="Error de conexion internauta")
+        return {"status": "error", "detail": str(e)}
