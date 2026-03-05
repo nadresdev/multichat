@@ -16,12 +16,12 @@ google-api-core==2.30.0
 google-api-python-client==2.191.0
 google-auth==2.49.0.dev0
 google-auth-httplib2==0.3.0
-google-genai==1.65.0
+google-genai>=1.0.0
 google-generativeai==0.8.6
-googleapis-common-protos==1.72.0
+googleapis-common-protos>=1.63.0
 greenlet==3.3.2
-grpcio==1.78.0
-grpcio-status==1.71.2
+grpcio>=1.70.0
+grpcio-status>=1.49.0
 h11==0.16.0
 httpcore==1.0.9
 httplib2==0.31.2
@@ -33,7 +33,7 @@ MarkupSafe==3.0.3
 openai==2.24.0
 passlib==1.7.4
 proto-plus==1.27.1
-protobuf==5.29.6
+protobuf>=4.25.0
 pyasn1==0.6.2
 pyasn1_modules==0.4.2
 pycparser==3.0
