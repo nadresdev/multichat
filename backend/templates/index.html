@@ -888,17 +888,25 @@
                             <div class="absolute top-0 -right-2 w-4 h-4 bg-blue-600 -skew-x-12 border-none -z-10 rounded-tr-sm"></div>
                         </div>
                         <span class="text-[10px] text-slate-500 mt-1 mr-2 font-medium">${formatTime(msgData.created_at)}</span>
-                    </div>
                 `);
             } else {
+                // Calculamos inicial de nombre o genérico
+                const senderInitial = msgData.name ? msgData.name.charAt(0).toUpperCase() : '<i class="fa-solid fa-user text-[10px]"></i>';
+
                 container.insertAdjacentHTML('beforeend', `
-                    <div class="flex flex-col items-start max-w-[85%] group">
-                        <span class="text-[11px] font-bold text-slate-500 mb-1 ml-2 opacity-0 group-hover:opacity-100 transition-opacity">+${msgData.from}</span>
-                        <div class="p-3.5 bg-slate-800 rounded-2xl rounded-tl-sm text-[15px] leading-relaxed text-slate-200 border border-slate-700 shadow-md shadow-black/20 relative">
-                            ${msgData.text}
-                            <div class="absolute top-0 -left-2 w-4 h-4 bg-slate-800 skew-x-12 border-l border-t border-slate-700 -z-10 rounded-tl-sm"></div>
+                    <div class="flex items-end max-w-[85%] group">
+                        <!--Avatar del cliente-->
+                        <div class="w-8 h-8 rounded-full bg-slate-700 border border-slate-600 flex items-center justify-center text-slate-300 font-bold shadow-inner mr-2 mb-4 flex-shrink-0">
+                            ${senderInitial}
                         </div>
-                        <span class="text-[10px] text-slate-500 mt-1 ml-2 font-medium">${formatTime(msgData.created_at)}</span>
+                        <div class="flex flex-col items-start w-full">
+                            <span class="text-[11px] font-bold text-slate-500 mb-1 ml-2 opacity-0 group-hover:opacity-100 transition-opacity">+${msgData.from}</span>
+                            <div class="p-3.5 bg-slate-800 rounded-2xl rounded-bl-sm text-[15px] leading-relaxed text-slate-200 border border-slate-700 shadow-md shadow-black/20 relative">
+                                ${msgData.text}
+                                <div class="absolute bottom-0 -left-2 w-4 h-4 bg-slate-800 -skew-x-12 border-l border-b border-slate-700 -z-10 rounded-bl-sm"></div>
+                            </div>
+                            <span class="text-[10px] text-slate-500 mt-1 ml-2 font-medium">${formatTime(msgData.created_at)}</span>
+                        </div>
                     </div>
                 `);
             }
@@ -928,7 +936,7 @@
             }
 
             try {
-                const res = await fetch(`/api/contacts/${activeChatPhone}/tickets`, {
+                const res = await fetch(`/ api / contacts / ${activeChatPhone} / tickets`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ level: level, description: desc })
@@ -941,11 +949,11 @@
                     // Inyectar una burbuja artificial indicando el ticket a nivel UI local
                     const msgArea = document.getElementById('messageArea');
                     msgArea.insertAdjacentHTML('beforeend', `
-                        <div class="flex flex-col items-center my-4 w-full">
-                            <span class="bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-4 py-2 rounded-full text-xs font-bold uppercase tracking-wide">
-                                <i class="fa-solid fa-ticket mr-1"></i> TICKET GENERADO PARA ${level}
-                            </span>
-                        </div>
+                < div class= "flex flex-col items-center my-4 w-full" >
+                <span class="bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-4 py-2 rounded-full text-xs font-bold uppercase tracking-wide">
+                    <i class="fa-solid fa-ticket mr-1"></i> TICKET GENERADO PARA ${level}
+                </span>
+                        </div >
                     `);
                     msgArea.scrollTop = msgArea.scrollHeight;
                 } else {
@@ -961,7 +969,7 @@
             const newName = prompt("Ingrese el nombre completo para el contacto. Cancelar o dejar vacío ignora el cambio.");
             if (newName && newName.trim() !== "") {
                 try {
-                    const res = await fetch(`/api/contacts/${phone}`, {
+                    const res = await fetch(`/ api / contacts / ${phone}`, {
                         method: 'PUT',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ name: newName.trim() })
@@ -1017,7 +1025,7 @@
                     injectMessageBubble({ direction: "outbound", text: text, from: activeChatPhone, created_at: dataRes.created_at });
 
                     // Asegurarnos de guardar también este outbound en el history del elemento sidebar por si lo deseleccionan
-                    const sidebarEl = document.getElementById(`chat-${activeChatPhone}`);
+                    const sidebarEl = document.getElementById(`chat - ${activeChatPhone}`);
                     if (sidebarEl && sidebarEl.messagesHistory) {
                         sidebarEl.messagesHistory.push({ direction: "outbound", text: text, from: activeChatPhone, name: sidebarEl.querySelector('#headerContactName')?.innerText, created_at: dataRes.created_at });
                     }
@@ -1054,9 +1062,10 @@
         const style = document.createElement('style');
         style.innerHTML = `
             @keyframes fadeIn { from { opacity: 0; transform: translateY(15px); } to { opacity: 1; transform: translateY(0); } }
-            .animate-fade-in { animation: fadeIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
-            .scrollbar-hide::-webkit-scrollbar { display: none; }
-            .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+            .animate - fade -in { animation: fadeIn 0.4s cubic- bezier(0.16, 1, 0.3, 1) forwards;
+        }
+            .scrollbar - hide:: -webkit - scrollbar { display: none; }
+            .scrollbar - hide { -ms - overflow - style: none; scrollbar - width: none; }
         `;
         document.head.appendChild(style);
     </script>
