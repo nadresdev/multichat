@@ -49,6 +49,7 @@ Tu objetivo es doble:
 model = genai.GenerativeModel('gemini-2.5-flash', system_instruction=system_instruction)
 
 app.include_router(auth_router.router)
+os.makedirs("static", exist_ok=True)
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
 # Para servir nuestro Frontend
