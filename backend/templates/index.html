@@ -1,0 +1,1014 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MultiChat | Login</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #0f172a;
+        }
+
+        .glass {
+            background: rgba(30, 41, 59, 0.7);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .scrollbar-hide::-webkit-scrollbar {
+            display: none;
+        }
+
+        .scrollbar-hide {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+    </style>
+</head>
+
+<body class="text-slate-200 h-screen flex flex-col justify-center items-center overflow-hidden relative">
+
+    <!-- Decoración de fondo -->
+    <div class="absolute top-0 left-1/4 w-96 h-96 bg-blue-500/10 rounded-full blur-[100px] pointer-events-none"></div>
+    <div class="absolute bottom-0 right-1/4 w-96 h-96 bg-emerald-500/10 rounded-full blur-[100px] pointer-events-none">
+    </div>
+
+    <div id="loginSection" class="z-10 w-full max-w-md">
+        <div class="glass p-8 rounded-2xl shadow-2xl border-slate-700/50">
+            <div class="text-center mb-8">
+                <div class="inline-flex bg-blue-500 p-3 rounded-full shadow-[0_0_15px_rgba(59,130,246,0.5)] mb-4">
+                    <i class="fa-brands fa-whatsapp text-white text-3xl"></i>
+                </div>
+                <h1
+                    class="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-emerald-400">
+                    MultiChat Login</h1>
+                <p class="text-slate-400 text-sm mt-2">Ingresa con tus credenciales de agente</p>
+            </div>
+
+            <form id="loginForm" class="space-y-6" onsubmit="handleLogin(event)">
+                <div>
+                    <label class="block text-sm font-medium text-slate-300 mb-2">Usuario</label>
+                    <input type="text" id="username" required
+                        class="w-full bg-slate-900 border border-slate-600 rounded-lg px-4 py-3 text-sm focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/50 text-white placeholder-slate-500 transition-all"
+                        placeholder="Ej: ana_ventas">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-slate-300 mb-2">Contraseña</label>
+                    <input type="password" id="password" required
+                        class="w-full bg-slate-900 border border-slate-600 rounded-lg px-4 py-3 text-sm focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/50 text-white placeholder-slate-500 transition-all"
+                        placeholder="••••••••">
+                </div>
+
+                <div id="errorMsg"
+                    class="hidden text-red-400 text-sm font-medium text-center bg-red-500/10 py-2 rounded border border-red-500/20">
+                    Credenciales incorrectas
+                </div>
+
+                <button type="submit"
+                    class="w-full bg-blue-600 hover:bg-blue-500 text-white py-3 rounded-lg text-sm font-bold transition-all transform hover:scale-105 shadow-lg shadow-blue-500/30">
+                    Ingresar
+                </button>
+
+                <p class="text-xs text-center mt-4 text-slate-500">
+                    Cuentas de prueba: ana_ventas, carlos_soporte, luis_recepcion. Pass: 123
+                </p>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        // Si ya hay token, redirigir a la app directamente o cargar la UI dinámicamente.
+        // Por simplicidad para este demo, inyectaremos la UI principal si el login es exitoso
+        async function handleLogin(e) {
+            e.preventDefault();
+            const u = document.getElementById('username').value;
+            const p = document.getElementById('password').value;
+
+            const formData = new URLSearchParams();
+            formData.append('username', u);
+            formData.append('password', p);
+
+            try {
+                const res = await fetch('/token', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: formData
+                });
+
+                if (res.ok) {
+                    const data = await res.json();
+                    localStorage.setItem('access_token', data.access_token);
+                    localStorage.setItem('role', data.role);
+                    localStorage.setItem('full_name', data.full_name);
+
+                    // Cargar la UI de App
+                    loadAppUI(data);
+                } else {
+                    document.getElementById('errorMsg').classList.remove('hidden');
+                }
+            } catch (e) {
+                console.error(e);
+            }
+        }
+
+        function logout() {
+            localStorage.clear();
+            location.reload();
+        }
+
+        // Revisar si ya estábamos logueados al abrir la página
+        window.onload = () => {
+            const token = localStorage.getItem('access_token');
+            if (token) {
+                // Asumimos que es valido, en un entorno real hariamos un GET a /me
+                loadAppUI({
+                    role: localStorage.getItem('role'),
+                    full_name: localStorage.getItem('full_name'),
+                    access_token: token
+                });
+            }
+        };
+
+        function loadAppUI(user) {
+            // Ocultar Login
+            document.body.classList.remove('justify-center', 'items-center');
+            document.getElementById('loginSection').innerHTML = ''; // Eliminar para dar espacio
+
+            // Permitir que el departamento sea seleccionado automáticamente por su rol
+            let optionsHTML = '';
+            let adminBtnHTML = '';
+            if (user.role === 'admin') {
+                optionsHTML = `
+                    <option value="todos">🌍 Todos los Chats (Admin)</option>
+                    <option value="ventas">🛍️ Ventas</option>
+                    <option value="soporte">🛠️ Soporte Técnico</option>
+                    <option value="recepcion">🏢 Recepción General</option>
+                `;
+                adminBtnHTML = `<button onclick="loadGlobalPanel()" class="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2.5 rounded-lg text-sm font-bold transition-all transform shadow-lg shadow-indigo-500/30 flex items-center space-x-2 mr-3 border border-indigo-400/30">
+                                   <i class="fa-solid fa-gauge-high"></i>
+                                   <span>Dashboard Global</span>
+                                </button>`;
+            } else {
+                let text = "🏢 Recepción";
+                if (user.role === 'ventas') text = "🛍️ Ventas";
+                if (user.role === 'soporte') text = "🛠️ Soporte Técnico";
+                optionsHTML = `<option value="${user.role}">${text}</option>`;
+            }
+
+            const appHTML = `
+            <!-- Navegación -->
+            <nav class="glass w-full px-6 py-4 flex justify-between items-center shadow-lg z-10 sticky top-0">
+                <div class="flex items-center space-x-3">
+                    <div class="bg-blue-500 p-2 rounded-full shadow-[0_0_15px_rgba(59,130,246,0.5)]">
+                        <i class="fa-brands fa-whatsapp text-white text-xl"></i>
+                    </div>
+                    <h1 class="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-emerald-400 drop-shadow-sm">MultiChat</h1>
+               </div>
+                
+                <div class="flex items-center space-x-4">
+                    <div class="text-right mr-4 leading-tight">
+                        <p class="text-sm font-bold text-white">${user.full_name}</p>
+                        <p class="text-[10px] text-blue-400 uppercase tracking-widest">${user.role}</p>
+                    </div>
+                    <span class="text-sm text-slate-400 mr-2">Dept:</span>
+                    <select id="departmentSelect" onchange="if(ws) { ws.close(); connectWebSocket(); }" class="bg-slate-800 border border-slate-700 text-white text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block p-2.5 outline-none transition-all cursor-pointer font-medium shadow-inner mr-4">
+                        ${optionsHTML}
+                    </select>
+                    
+                    ${adminBtnHTML}
+
+                    <div class="flex items-center space-x-2 bg-slate-800/50 px-3 py-2 rounded-lg border border-slate-700/50">
+                        <div id="statusDot" class="w-3 h-3 bg-red-500 rounded-full animate-pulse shadow-[0_0_10px_rgba(239,68,68,0.7)]"></div>
+                        <span id="statusText" class="text-xs font-bold tracking-wider text-slate-300 uppercase">OFFLINE</span>
+                    </div>
+                    <button onclick="if(ws) { ws.close(); } else { connectWebSocket(); }" class="bg-blue-600 hover:bg-blue-500 text-white px-5 py-2.5 rounded-lg text-sm font-bold transition-all transform hover:scale-105 shadow-lg shadow-blue-500/30 flex items-center space-x-2">
+                        <i class="fa-solid fa-plug"></i>
+                        <span id="btnConnectText">Conectar</span>
+                    </button>
+                    <button onclick="logout()" class="text-slate-400 hover:text-white px-3 py-2 transition-colors ml-3">
+                        <i class="fa-solid fa-right-from-bracket"></i>
+                    </button>
+                </div>
+            </nav>
+
+            <!-- Contenido Principal -->
+            <main class="flex-1 w-full flex overflow-hidden p-6 gap-6 relative z-10" style="height: calc(100vh - 84px);">
+                <!-- Lista de Chats -->
+                <section class="w-1/3 glass rounded-2xl flex flex-col overflow-hidden transition-all duration-300 hover:shadow-2xl hover:shadow-blue-900/20 border-slate-700/50 bg-[#0f172a]/80">
+                    <div class="p-5 border-b border-slate-700/50 bg-slate-800/40 flex justify-between items-center backdrop-blur-sm">
+                        <h2 class="text-lg font-bold text-white flex items-center tracking-wide">
+                            <i class="fa-solid fa-inbox mr-3 text-blue-400"></i> Bandeja de Entrada
+                        </h2>
+                        <span class="bg-blue-500/20 text-blue-400 text-xs px-2.5 py-1 rounded-full font-bold border border-blue-500/30" id="chatCount">0</span>
+                    </div>
+                    
+                    <div id="chatList" class="flex-1 overflow-y-auto scrollbar-hide p-3 space-y-2">
+                        <div id="emptyState" class="h-full flex flex-col items-center justify-center text-slate-500 space-y-4">
+                            <div class="w-20 h-20 bg-slate-800/50 rounded-full flex items-center justify-center border border-slate-700/50 shadow-inner mb-2">
+                                <i class="fa-regular fa-comments text-3xl text-slate-600"></i>
+                            </div>
+                            <p class="text-sm text-center px-4 font-medium text-slate-400">Conéctate al servidor para recibir mensajes de tu departamento.</p>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Área de Conversación -->
+                <section class="w-2/3 glass rounded-2xl flex flex-col overflow-hidden border-slate-700/50 bg-[#0f172a]/80">
+                    <div class="p-5 border-b border-slate-700/50 bg-slate-800/40 flex items-center justify-between backdrop-blur-sm">
+                        <div class="flex items-center space-x-4">
+                            <div class="w-12 h-12 bg-gradient-to-br from-slate-600 to-slate-800 border border-slate-600 rounded-full flex items-center justify-center text-white font-bold shadow-inner relative">
+                                <i class="fa-solid fa-user text-xl"></i>
+                                <div class="absolute bottom-0 right-0 w-3 h-3 bg-emerald-500 rounded-full border-2 border-slate-800"></div>
+                            </div>
+                            <div>
+                                <h3 class="font-bold text-white text-lg tracking-wide" id="activeChatName">Chat no seleccionado</h3>
+                                <p class="text-xs text-slate-400 font-medium" id="activeChatPhone">---</p>
+                            </div>
+                        </div>
+                        <div class="flex items-center space-x-2">
+                            <span class="bg-slate-500/10 text-slate-400 border border-slate-500/20 px-3 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider hidden shadow-sm" id="deptTag">
+                                Departamento
+                            </span>
+                            <button onclick="showReassignModal()" id="btnReassign" class="hidden text-slate-400 hover:text-white bg-slate-800 hover:bg-slate-700 border border-slate-600 px-3 py-1.5 rounded-lg text-xs font-bold tracking-wide transition-all shadow-sm">
+                                <i class="fa-solid fa-share mr-1"></i> Transferir
+                            </button>
+                            <button onclick="showTicketModal()" id="btnTicket" class="hidden text-emerald-400 hover:text-white bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 px-3 py-1.5 rounded-lg text-xs font-bold tracking-wide transition-all shadow-sm">
+                                <i class="fa-solid fa-ticket mr-1"></i> Ticket
+                            </button>
+                        </div>
+                    </div>
+
+                    <div id="messageArea" class="flex-1 overflow-y-auto p-6 space-y-6 scrollbar-hide bg-[#0f172a]/30 relative">
+                        <div class="h-full flex flex-col items-center justify-center space-y-3 opacity-50">
+                            <i class="fa-brands fa-whatsapp text-6xl text-slate-700"></i>
+                            <p class="text-slate-500 font-medium text-sm">Selecciona un chat a la izquierda para ver la conversación.</p>
+                        </div>
+                    </div>
+
+                    <!-- Contenedor inferior: Quick Replies + Caja de Entrada -->
+                    <div class="px-4 py-3 bg-slate-800/60 border-t border-slate-700/50 backdrop-blur-md flex flex-col space-y-3">
+                        
+                        <!-- Respuestas Predeterminadas -->
+                        <div class="flex items-center space-x-2 overflow-x-auto scrollbar-hide pb-1" id="quickRepliesBar">
+                            <span class="text-[10px] text-slate-500 font-bold uppercase tracking-wider mr-2 shrink-0"><i class="fa-solid fa-bolt text-yellow-500 mr-1"></i> Rápidas</span>
+                            <button onclick="insertQuickReply('¡Hola! En un momento te atiendo.')" class="bg-slate-700/50 hover:bg-slate-600 border border-slate-600 text-slate-300 text-[11px] px-3 py-1.5 rounded-full whitespace-nowrap transition-colors shadow-sm">¡Hola! En un momento...</button>
+                            <button onclick="insertQuickReply('Déjame revisar la información, por favor.')" class="bg-slate-700/50 hover:bg-slate-600 border border-slate-600 text-slate-300 text-[11px] px-3 py-1.5 rounded-full whitespace-nowrap transition-colors shadow-sm">Déjame revisar...</button>
+                            <button onclick="insertQuickReply('¿Me puedes enviar más detalles del caso?')" class="bg-slate-700/50 hover:bg-slate-600 border border-slate-600 text-slate-300 text-[11px] px-3 py-1.5 rounded-full whitespace-nowrap transition-colors shadow-sm">Dar detalles</button>
+                            <button onclick="insertQuickReply('¡Gracias por comunicarte con nosotros! Hemos cerrado este ticket.')" class="bg-slate-700/50 hover:bg-slate-600 border border-slate-600 text-slate-300 text-[11px] px-3 py-1.5 rounded-full whitespace-nowrap transition-colors shadow-sm">Despedida</button>
+                        </div>
+
+                        <!-- Panel de tipeo y envío -->
+                        <div class="flex items-end space-x-3">
+                            <button class="text-slate-400 hover:text-white transition-colors p-3 rounded-full hover:bg-slate-700/50 focus:outline-none h-[48px] w-[48px] flex items-center justify-center text-lg shrink-0">
+                                <i class="fa-solid fa-paperclip"></i>
+                            </button>
+                            <div class="flex-1 relative">
+                                <textarea id="chatTextarea" rows="1" placeholder="Escribe tu respuesta aquí..." disabled class="w-full bg-slate-900 border border-slate-600 rounded-2xl px-4 py-3 text-sm focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/50 text-slate-200 placeholder-slate-500 transition-all cursor-not-allowed opacity-50 resize-none overflow-hidden block"></textarea>
+                            </div>
+                            <button id="btnSendChat" onclick="sendCurrentChat()" class="bg-blue-600 text-white rounded-full h-[48px] w-[48px] flex items-center justify-center hover:bg-blue-500 transition-all transform hover:scale-105 hover:-translate-y-1 shadow-[0_5px_15px_rgba(37,99,235,0.4)] opacity-50 cursor-not-allowed border border-blue-400/30 font-bold focus:outline-none shrink-0">
+                                <i class="fa-solid fa-paper-plane ml-1"></i>
+                            </button>
+                        </div>
+                    </div>
+                </section>
+            </main>
+
+            <!-- Reassign Modal -->
+            <div id="reassignModal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center">
+                <div class="bg-slate-800 border border-slate-700 rounded-2xl w-96 max-w-full shadow-2xl overflow-hidden shadow-[0_0_30px_rgba(0,0,0,0.5)] transform transition-all">
+                    <div class="p-5 border-b border-slate-700/80 bg-slate-900/40 flex justify-between items-center">
+                        <h3 class="text-white font-bold text-lg"><i class="fa-solid fa-share text-blue-400 mr-2"></i> Transferir Chat</h3>
+                        <button onclick="closeReassignModal()" class="text-slate-400 hover:text-white transition-colors"><i class="fa-solid fa-xmark"></i></button>
+                    </div>
+                    <div class="p-6 space-y-4">
+                        <div>
+                            <label class="block text-xs font-medium text-slate-400 mb-2 uppercase tracking-wide">Área Destino</label>
+                            <select id="reassignDept" class="w-full bg-slate-900 border border-slate-600 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:border-blue-500 text-slate-200">
+                                <option value="ventas">🛍️ Ventas</option>
+                                <option value="soporte">🛠️ Soporte Técnico</option>
+                                <option value="recepcion">🏢 Recepción</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-slate-400 mb-2 uppercase tracking-wide">Observación (Opcional)</label>
+                            <textarea id="reassignObs" rows="3" placeholder="Ej: Cliente molestó por retraso..." class="w-full bg-slate-900 border border-slate-600 rounded-lg px-4 py-3 text-sm focus:outline-none focus:border-blue-500 text-slate-200 resize-none"></textarea>
+                        </div>
+                        <button onclick="submitReassign()" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-2.5 rounded-xl transition-all shadow-lg hover:shadow-blue-500/30">Confirmar Transferencia</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Ticket Modal -->
+            <div id="ticketModal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center">
+                <div class="bg-slate-800 border border-slate-700 rounded-2xl w-96 max-w-full shadow-2xl overflow-hidden shadow-[0_0_30px_rgba(0,0,0,0.5)] transform transition-all">
+                    <div class="p-5 border-b border-slate-700/80 bg-slate-900/40 flex justify-between items-center">
+                        <h3 class="text-white font-bold text-lg"><i class="fa-solid fa-ticket text-emerald-400 mr-2"></i> Generar Ticket</h3>
+                        <button onclick="closeTicketModal()" class="text-slate-400 hover:text-white transition-colors"><i class="fa-solid fa-xmark"></i></button>
+                    </div>
+                    <div class="p-6 space-y-4">
+                        <div>
+                            <label class="block text-xs font-medium text-slate-400 mb-2 uppercase tracking-wide">Nivel de Servicio</label>
+                            <select id="ticketLevel" class="w-full bg-slate-900 border border-slate-600 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:border-emerald-500 text-slate-200">
+                                <option value="Nivel 2">Nivel 2 (Soporte Avanzado)</option>
+                                <option value="Nivel 3">Nivel 3 (Sistemas / Devs)</option>
+                                <option value="Administracion">Administración o Finanzas</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-slate-400 mb-2 uppercase tracking-wide">Descripción del Problema</label>
+                            <textarea id="ticketDesc" rows="4" placeholder="Detalla por qué se está escalando este caso..." class="w-full bg-slate-900 border border-slate-600 rounded-lg px-4 py-3 text-sm focus:outline-none focus:border-emerald-500 text-slate-200 resize-none"></textarea>
+                        </div>
+                        <button onclick="submitTicket()" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2.5 rounded-xl transition-all shadow-lg hover:shadow-emerald-500/30">Crear Ticket</button>
+                    </div>
+                </div>
+            </div>`;
+
+            document.body.insertAdjacentHTML('beforeend', appHTML);
+        }
+
+        // --- DASHBOARD DE ADMIN ---
+        window.loadGlobalPanel = async function () {
+            if (ws) { ws.close(); }
+
+            // Reemplazar main
+            const mainEl = document.querySelector('main');
+            mainEl.innerHTML = `<div class="w-full h-full flex items-center justify-center"><div class="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-500"></div></div>`;
+
+            try {
+                const [resChats, resTickets] = await Promise.all([
+                    fetch('/api/admin/conversations', { headers: { 'Authorization': 'Bearer ' + localStorage.getItem('access_token') } }),
+                    fetch('/api/tickets', { headers: { 'Authorization': 'Bearer ' + localStorage.getItem('access_token') } })
+                ]);
+
+                if (!resChats.ok || !resTickets.ok) throw new Error("Fallo");
+
+                const dataChats = await resChats.json();
+                const dataTickets = await resTickets.json();
+
+                let tbody = '';
+                dataChats.forEach(c => {
+                    let deptBadge = "bg-slate-500 text-white";
+                    if (c.department === 'ventas') deptBadge = 'bg-yellow-500 text-black';
+                    if (c.department === 'soporte') deptBadge = 'bg-blue-500 text-white';
+
+                    tbody += `
+                    <tr class="border-b border-slate-700/50 hover:bg-slate-800/50 transition-colors">
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-white">${c.name}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-400">+${c.phone}</td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <span class="px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider rounded-full ${deptBadge}">${c.department}</span>
+                        </td>
+                        <td class="px-6 py-4 text-[11px] text-slate-300 truncate max-w-[200px]" title="${c.last_message}">${c.last_message.substring(0, 40)}...</td>
+                        <td class="px-6 py-4 text-xs font-medium text-orange-200 truncate max-w-[150px]" title="${c.observation}">${c.observation}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-xs text-slate-500">${c.last_active}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                            <button onclick="forceReassign('${c.phone}', '${c.department}')" class="text-indigo-400 hover:text-indigo-300 transition-colors bg-indigo-500/10 px-3 py-1.5 rounded border border-indigo-500/20 shadow-sm text-xs font-bold uppercase"><i class="fa-solid fa-share-nodes mr-1"></i> Forzar</button>
+                        </td>
+                    </tr>`;
+                });
+
+                let tTbody = '';
+                if (dataTickets.length === 0) {
+                    tTbody = `<tr><td colspan="6" class="px-6 py-8 text-center text-slate-500 font-medium">No hay tickets abiertos</td></tr>`;
+                } else {
+                    dataTickets.forEach(t => {
+                        let levelBadge = "bg-emerald-500/20 text-emerald-400 border-emerald-500/30";
+                        if (t.level === 'Nivel 3') levelBadge = 'bg-purple-500/20 text-purple-400 border-purple-500/30';
+                        if (t.level === 'Administracion') levelBadge = 'bg-orange-500/20 text-orange-400 border-orange-500/30';
+
+                        tTbody += `
+                        <tr class="border-b border-slate-700/50 hover:bg-slate-800/50 transition-colors">
+                            <td class="px-6 py-4 font-bold text-white uppercase text-xs">#${t.id}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-slate-300">${t.contact_name || 'Desconocido'}<br><span class="text-[10px] text-slate-500">+${t.contact_phone}</span></td>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <span class="px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider rounded border ${levelBadge}">${t.level}</span>
+                            </td>
+                            <td class="px-6 py-4 text-xs text-slate-300 max-w-[300px] whitespace-normal">${t.description}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-xs text-slate-500">${new Date(t.created_at).toLocaleString()}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                <button onclick="closeGlobalTicket(${t.id})" class="text-emerald-400 hover:text-emerald-300 transition-colors bg-emerald-500/10 px-3 py-1.5 rounded border border-emerald-500/20 shadow-sm text-xs font-bold uppercase"><i class="fa-solid fa-check mr-1"></i> Resolver</button>
+                            </td>
+                        </tr>`;
+                    });
+                }
+
+                mainEl.innerHTML = `
+                    <div class="w-full flex-col glass rounded-2xl border-slate-700/50 bg-[#0f172a]/80 overflow-hidden flex shadow-2xl space-y-4 h-full">
+                        <div class="p-6 border-b border-slate-700/50 flex justify-between items-center bg-slate-800/40 shrink-0">
+                            <div>
+                                <h2 class="text-xl font-bold text-white"><i class="fa-solid fa-server text-indigo-400 mr-2"></i> Dashboard Global</h2>
+                                <p class="text-sm text-slate-400 mt-1">Supervisión de chats activos y atención de Tickets en escalamiento.</p>
+                            </div>
+                            <button onclick="location.reload()" class="text-sm text-slate-300 hover:text-white bg-slate-700 px-4 py-2 rounded-lg border border-slate-600 transition-colors"><i class="fa-solid fa-arrow-left mr-2"></i> Volver a Mi Área</button>
+                        </div>
+                        
+                        <!-- TABLA TICKETS -->
+                        <div class="px-6 pt-2 shrink-0">
+                            <h3 class="text-emerald-400 font-bold mb-3 flex items-center uppercase text-sm tracking-wider"><i class="fa-solid fa-ticket mr-2"></i> Tickets Abiertos en Escalamiento</h3>
+                        </div>
+                        <div class="flex-none overflow-auto px-6 max-h-[40%] rounded-lg">
+                            <table class="w-full text-left border-collapse bg-slate-900/40 rounded-lg overflow-hidden border border-slate-700/50">
+                                <thead>
+                                    <tr class="bg-slate-900/80 text-slate-400 text-[10px] uppercase tracking-wider border-b border-slate-700">
+                                        <th class="px-4 py-3 font-semibold">TKT</th>
+                                        <th class="px-4 py-3 font-semibold">Cte / Teléfono</th>
+                                        <th class="px-4 py-3 font-semibold">Nivel Requerido</th>
+                                        <th class="px-4 py-3 font-semibold w-1/3">Descripción del Problema</th>
+                                        <th class="px-4 py-3 font-semibold">Fecha de Creación</th>
+                                        <th class="px-4 py-3 font-semibold text-right">Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${tTbody}
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <!-- TABLA CHATS -->
+                        <div class="px-6 pt-2 mt-4 shrink-0">
+                            <h3 class="text-blue-400 font-bold mb-3 flex items-center uppercase text-sm tracking-wider"><i class="fa-solid fa-comments mr-2"></i> Chats Activos</h3>
+                        </div>
+                        <div class="flex-1 overflow-auto px-6 pb-6">
+                            <table class="w-full text-left border-collapse bg-slate-900/40 border border-slate-700/50">
+                                <thead>
+                                    <tr class="bg-slate-900/80 text-slate-400 text-[10px] uppercase tracking-wider border-b border-slate-700">
+                                        <th class="px-4 py-3 font-semibold">Cliente</th>
+                                        <th class="px-4 py-3 font-semibold">Teléfono</th>
+                                        <th class="px-4 py-3 font-semibold">Área Actual</th>
+                                        <th class="px-4 py-3 font-semibold">Último Mensaje</th>
+                                        <th class="px-4 py-3 font-semibold">Observaciones Activas</th>
+                                        <th class="px-4 py-3 font-semibold">Hora Mod.</th>
+                                        <th class="px-4 py-3 font-semibold text-right">Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${tbody}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                `;
+            } catch (e) {
+                console.error(e);
+            }
+        };
+
+        window.forceReassign = function (phone, dept_code) {
+            activeChatPhone = phone;
+            document.getElementById('reassignDept').value = dept_code;
+            document.getElementById('reassignObs').value = "";
+
+            // Reutilizamos el modal que diseñamos antes pero sobrescribimos que hace
+            const oldSubmit = window.submitReassign;
+            window.submitReassign = async () => {
+                const targetDept = document.getElementById('reassignDept').value;
+                const obs = document.getElementById('reassignObs').value;
+                try {
+                    const res = await fetch(`/api/contacts/${phone}/reassign`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ department: targetDept, observation: obs })
+                    });
+                    if (res.ok) {
+                        closeReassignModal();
+                        loadGlobalPanel(); // Recargar la tabla
+                    }
+                } catch (e) { }
+                window.submitReassign = oldSubmit; // Restaurarlo para el chat normal
+            };
+            showReassignModal();
+        }
+
+        window.closeGlobalTicket = async function (ticketId) {
+            if (!confirm('¿Marcar este ticket como resuelto?')) return;
+            try {
+                const res = await fetch(`/api/tickets/${ticketId}/close`, {
+                    method: 'PUT',
+                    headers: { 'Authorization': 'Bearer ' + localStorage.getItem('access_token') }
+                });
+                if (res.ok) {
+                    loadGlobalPanel();
+                }
+            } catch (e) { }
+        };
+
+        // Lógica de Sockets e UI de Chats 
+        let ws = null;
+        let messageCount = 0;
+        let activeChatPhone = null;
+        let activeChatDept = null;
+
+        // --- MANEJO DE MODALS Y TRANSFERENCIAS ---
+        window.showReassignModal = () => document.getElementById('reassignModal').classList.remove('hidden');
+        window.closeReassignModal = () => document.getElementById('reassignModal').classList.add('hidden');
+
+        window.submitReassign = async () => {
+            if (!activeChatPhone) return;
+            const targetDept = document.getElementById('reassignDept').value;
+            const obs = document.getElementById('reassignObs').value;
+
+            try {
+                const res = await fetch(`/api/contacts/${activeChatPhone}/reassign`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ department: targetDept, observation: obs })
+                });
+
+                if (res.ok) {
+                    closeReassignModal();
+                    // Limpiar UI ya que lo transferió
+                    document.getElementById(`chat-${activeChatPhone}`).remove();
+                    document.getElementById('messageArea').innerHTML = `<div class="p-6 text-center text-slate-500 mt-10"><i class="fa-solid fa-check-circle text-4xl mb-3 text-emerald-500"></i><p>Chat transferido con éxito a ${document.getElementById('reassignDept').options[document.getElementById('reassignDept').selectedIndex].text}</p></div>`;
+                    document.getElementById('activeChatName').innerText = "Chat no seleccionado";
+                    document.getElementById('activeChatPhone').innerText = "---";
+                    document.getElementById('deptTag').classList.add('hidden');
+                    document.getElementById('btnReassign').classList.add('hidden');
+                    document.querySelector('textarea').disabled = true;
+                    document.getElementById('btnSendChat').disabled = true;
+                    activeChatPhone = null;
+                    activeChatDept = null;
+
+                    messageCount = Math.max(0, messageCount - 1);
+                    document.getElementById('chatCount').innerText = messageCount;
+                } else {
+                    alert("Error al transferir.");
+                }
+            } catch (e) {
+                console.error(e);
+            }
+        };
+
+        window.connectWebSocket = function () {
+            const department = document.getElementById('departmentSelect').value;
+            const statusDot = document.getElementById('statusDot');
+            const statusText = document.getElementById('statusText');
+            const btnConnect = document.getElementById('btnConnectText');
+            const token = localStorage.getItem('access_token');
+
+            if (ws) {
+                ws.close();
+                ws = null;
+                btnConnect.innerText = "Conectar";
+                return; // Actuó como botón de desconexión
+            }
+
+            statusText.innerText = 'CONECTANDO...';
+            statusDot.classList.replace('bg-red-500', 'bg-yellow-500');
+
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const wsUrl = protocol + '//' + window.location.host + '/ws/' + department + '?token=' + token;
+
+            ws = new WebSocket(wsUrl);
+
+            ws.onopen = async () => {
+                statusText.innerText = 'ONLINE';
+                btnConnect.innerText = "Desconectar";
+                statusDot.classList.replace('bg-yellow-500', 'bg-emerald-500');
+                statusDot.classList.replace('shadow-[0_0_10px_rgba(239,68,68,0.7)]', 'shadow-[0_0_10px_rgba(16,185,129,0.7)]');
+
+                document.getElementById('chatList').innerHTML = '';
+                messageCount = 0;
+                updateCounter();
+
+                addSystemMessage("Conectado a la cola de atención actual (" + document.getElementById('departmentSelect').options[document.getElementById('departmentSelect').selectedIndex].text + ")");
+
+                // 🌟 NUEVO: Cargar historial al conectarse 🌟
+                try {
+                    const res = await fetch(`/api/messages/${department}`);
+                    if (res.ok) {
+                        const historyList = await res.json();
+                        historyList.forEach(chat => addIncomingChat(chat, true));
+                    }
+                } catch (e) {
+                    console.error("Error al cargar historial:", e);
+                }
+            };
+
+            ws.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+                addIncomingChat(data);
+            };
+
+            ws.onclose = () => {
+                ws = null;
+                statusText.innerText = 'OFFLINE';
+                btnConnect.innerText = "Conectar";
+                statusDot.classList.remove('bg-emerald-500', 'bg-yellow-500');
+                statusDot.classList.add('bg-red-500');
+                statusDot.classList.replace('shadow-[0_0_10px_rgba(16,185,129,0.7)]', 'shadow-[0_0_10px_rgba(239,68,68,0.7)]');
+            };
+        }
+
+        function addSystemMessage(text) {
+            const list = document.getElementById('chatList');
+            if (document.getElementById('emptyState')) document.getElementById('emptyState').remove();
+
+            const el = document.createElement('div');
+            el.className = "text-center py-3 text-xs text-emerald-400 font-medium bg-emerald-500/10 rounded-lg border border-emerald-500/20";
+            el.innerHTML = `< i class= "fa-solid fa-check-circle mr-1" ></i > ${text}`;
+            list.appendChild(el);
+        }
+
+        window.editContactName = async function (phone) {
+            const newName = prompt("Ingresa el nuevo nombre para este cliente (" + phone + "):");
+            if (newName) {
+                try {
+                    const res = await fetch(`/ api / contacts / ${phone}`, {
+                        method: 'PUT',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': 'Bearer ' + localStorage.getItem('access_token')
+                        },
+                        body: JSON.stringify({ name: newName })
+                    });
+                    if (res.ok) {
+                        const result = await res.json();
+                        document.getElementById('activeChatName').innerHTML = `
+                            <div class="flex items-center space-x-2">
+                                <span>${result.name}</span>
+                                <button onclick="editContactName('${phone}')" class="text-slate-400 hover:text-white transition-colors" title="Editar Contacto"><i class="fa-solid fa-pen text-xs"></i></button>
+                            </div>
+                        `;
+                    }
+                } catch (e) {
+                    console.error("Error al actualizar contacto:", e);
+                }
+            }
+        };
+
+        function formatTime(isoString) {
+            if (!isoString) return "Ahora";
+            // Z forza a Javascript a leerlo como UTC si el backend no lo envía, ajustándolo a la local
+            const d = new Date(isoString.endsWith("Z") ? isoString : isoString + "Z");
+            return isNaN(d) ? "Ahora" : d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        }
+
+        function getDateLabel(isoString) {
+            if (!isoString) return "Hoy";
+            const d = new Date(isoString.endsWith("Z") ? isoString : isoString + "Z");
+            if (isNaN(d)) return "Hoy";
+
+            const today = new Date();
+            const yesterday = new Date(today);
+            yesterday.setDate(today.getDate() - 1);
+
+            if (d.toDateString() === today.toDateString()) return "Hoy";
+            if (d.toDateString() === yesterday.toDateString()) return "Ayer";
+
+            const diffTime = Math.abs(today - d);
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+            if (diffDays < 7) {
+                const days = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+                return days[d.getDay()];
+            }
+
+            return d.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' });
+        }
+
+        function addIncomingChat(data, isHistory = false) {
+            const list = document.getElementById('chatList');
+            if (document.getElementById('emptyState')) document.getElementById('emptyState').remove();
+
+            // Verificar si este chat ya existe en la lista
+            let chatEl = document.getElementById(`chat-${data.from}`);
+
+            if (!chatEl) {
+                // Si no existe, preparamos un nuevo cuadro y contamos
+                messageCount++;
+                updateCounter();
+
+                chatEl = document.createElement('div');
+                chatEl.id = `chat-${data.from}`;
+                chatEl.className = "p-3.5 rounded-xl bg-slate-800/80 hover:bg-slate-700 hover:shadow-lg border border-slate-700/50 cursor-pointer transition-all hover:border-slate-500 group animate-fade-in relative overflow-hidden";
+                list.prepend(chatEl); // Añadir a la lista visualmente
+            } else if (!isHistory) {
+                // Si existe y llega un mensaje nuevo en tiempo real, lo subimos al tope de la lista
+                list.prepend(chatEl);
+            }
+
+            let icon = "fa-building";
+            let color = "text-slate-400";
+            let bgTag = "bg-slate-900";
+            if (data.department === 'ventas') { icon = "fa-shopping-bag"; color = "text-yellow-400"; bgTag = "bg-yellow-500/10 border-yellow-500/20"; }
+            if (data.department === 'soporte') { icon = "fa-wrench"; color = "text-blue-400"; bgTag = "bg-blue-500/10 border-blue-500/20"; }
+
+            // Display name or just phone number
+            const displayName = data.name ? data.name : "+" + data.from;
+            const newBadge = isHistory ? "" : '<span class="text-[10px] text-blue-400 font-bold tracking-wider">NUEVO</span>';
+            const unseenStripe = isHistory ? "" : '<div class="absolute left-0 top-0 bottom-0 w-1 bg-blue-500"></div>';
+
+            // Badge de IA si no es historico y trae repuesta
+            const aiBadge = (!isHistory && data.suggested_reply) ? `<span class="bg-[#eab308] text-black text-[9px] font-extrabold px-1.5 py-[2px] rounded uppercase flex items-center shadow shadow-black/20 ml-2"><i class="fa-solid fa-wand-magic-sparkles mr-1"></i> IA</span>` : '';
+
+            // Etiqueta de Observacion
+            const obsBadge = (data.observation && data.observation.trim() !== "") ? `<div class="mt-2 text-[10px] text-orange-200 bg-orange-500/20 border border-orange-500/30 p-1.5 rounded font-medium flex items-start w-full"><i class="fa-solid fa-note-sticky mt-[2px] mr-1"></i> <span>Nota: ${data.observation}</span></div>` : '';
+
+
+            chatEl.innerHTML = `
+                ${unseenStripe}
+                    <div class="flex items-start pl-2">
+                        <div class="w-12 h-12 rounded-full bg-slate-900 border border-slate-600 flex items-center justify-center flex-shrink-0 group-hover:border-blue-500 group-hover:text-blue-400 transition-colors shadow-inner mt-1">
+                            <i class="fa-solid fa-user text-slate-400 group-hover:text-blue-400 transition-colors"></i>
+                        </div>
+                        <div class="flex-1 min-w-0 ml-3">
+                            <div class="flex justify-between items-baseline mb-1">
+                                <h4 class="text-[14px] font-bold text-white truncate flex items-center">${displayName} ${aiBadge}</h4>
+                                ${newBadge}
+                            </div>
+                            <p class="text-xs text-slate-400 truncate mb-1.5 leading-relaxed">${data.text}</p>
+                            <div class="flex flex-col items-start w-full gap-y-1">
+                                <span class="text-[9px] font-bold ${bgTag} px-2 py-0.5 rounded-full border text-slate-300 flex items-center uppercase tracking-wider whitespace-nowrap">
+                                    <i class="fa-solid ${icon} ${color} mr-1"></i> ${data.department}
+                                </span>
+                                ${obsBadge}
+                            </div>
+                        </div>
+                    </div>
+            `;
+
+            // Guardar el array de todos los mensajes en memoria asociándolo al elemento
+            if (!chatEl.messagesHistory) {
+                chatEl.messagesHistory = [];
+            }
+            chatEl.messagesHistory.push(data);
+
+            chatEl.onclick = () => window.openChat(chatEl.messagesHistory, chatEl, data);
+
+            // Si este es el chat actualmente abierto, inyectar la burbuja en tiempo real
+            if (activeChatPhone === data.from && !isHistory) {
+                injectMessageBubble(data);
+            }
+        }
+
+        window.openChat = function (historyDataArray, element, lastData) {
+            const unreadStripe = element.querySelector('.absolute.left-0');
+            if (unreadStripe) unreadStripe.remove();
+
+            // Usamos lastData (el ultimo msj renderizado como preview) para sacar phone y department general
+            let data = lastData ? lastData : historyDataArray[historyDataArray.length - 1];
+
+            activeChatPhone = data.from;
+            activeChatDept = data.department;
+
+            document.querySelectorAll('#chatList > div').forEach(el => el.classList.remove('bg-slate-700', 'border-blue-500/50'));
+            element.classList.add('bg-slate-700', 'border-blue-500/50');
+
+            const displayName = data.name ? data.name : "+" + data.from;
+            document.getElementById('activeChatName').innerHTML = `
+                <div class="flex items-center space-x-2">
+                    <span id="headerContactName">${displayName}</span>
+                    <button onclick="editContactName('${data.from}')" class="text-slate-400 hover:text-white transition-colors" title="Editar Contacto"><i class="fa-solid fa-pen text-xs"></i></button>
+                </div>
+            `;
+            document.getElementById('activeChatPhone').innerText = `CRM Lead • +${data.from} `;
+
+            const deptTag = document.getElementById('deptTag');
+            deptTag.classList.remove('hidden');
+            deptTag.innerText = data.department;
+
+            if (data.department === 'ventas') { deptTag.className = "bg-yellow-500/10 text-yellow-500 border border-yellow-500/30 px-3 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider shadow-[0_0_10px_rgba(234,179,8,0.2)]"; }
+            else if (data.department === 'soporte') { deptTag.className = "bg-blue-500/10 text-blue-400 border border-blue-500/30 px-3 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider shadow-[0_0_10px_rgba(59,130,246,0.2)]"; }
+            else { deptTag.className = "bg-slate-500/10 text-slate-300 border border-slate-500/30 px-3 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider shadow-[0_0_10px_rgba(100,116,139,0.2)]"; }
+
+            document.getElementById('btnReassign').classList.remove('hidden');
+            document.getElementById('btnTicket').classList.remove('hidden');
+
+            const msgArea = document.getElementById('messageArea');
+            // Limpiar área de mensajes principal para redibujar TODOS los mensajes de este contacto
+            msgArea.innerHTML = `
+                <div id="messagesContainer" class="flex flex-col space-y-4 pb-4 mt-4"></div>
+            `;
+
+            // Reiniciar tracker de fechas del chat renderizado actual
+            window.currentChatLastDate = "";
+
+            // iteramos sobre la lista de memoria del cliente
+            historyDataArray.forEach(msgData => {
+                injectMessageBubble(msgData, false);
+            });
+
+            msgArea.scrollTop = msgArea.scrollHeight;
+
+            const textarea = document.querySelector('textarea');
+            textarea.disabled = false;
+            textarea.classList.remove('opacity-50', 'cursor-not-allowed');
+
+            // Inyectar respuesta sugerida por la IA si existe (y si no es del historial)
+            if (data.suggested_reply && activeChatPhone === data.from && !data.direction) {
+                textarea.value = data.suggested_reply;
+            } else {
+                textarea.value = "";
+            }
+
+            const sendBtn = document.getElementById('btnSendChat');
+            sendBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+            sendBtn.classList.add('cursor-pointer');
+            sendBtn.disabled = false;
+        }
+
+        // Nueva función auxiliar para inyectar una única burbuja en la vista
+        function injectMessageBubble(msgData, autoScroll = true) {
+            const container = document.getElementById('messagesContainer');
+            if (!container) return;
+
+            const dateLabel = msgData.created_at ? getDateLabel(msgData.created_at) : "Hoy";
+            if (window.currentChatLastDate !== dateLabel) {
+                container.insertAdjacentHTML('beforeend', `
+                    <div class="flex justify-center my-4">
+                        <span class="bg-slate-800/80 font-medium text-[10px] text-slate-400 px-3 py-1 rounded-full border border-slate-700/50 backdrop-blur-sm shadow-sm transition-all">
+                            ${dateLabel}
+                        </span>
+                    </div>
+                 `);
+                window.currentChatLastDate = dateLabel;
+            }
+
+            if (msgData.direction === "outbound") {
+                container.insertAdjacentHTML('beforeend', `
+                    <div class="flex flex-col items-end space-y-1">
+                        <span class="text-[11px] font-bold text-slate-500 mr-2">Agente</span>
+                        <div class="px-4 py-3 bg-blue-600 rounded-2xl rounded-tr-sm text-[15px] leading-relaxed text-white shadow-md shadow-blue-900/20 relative w-fit max-w-[85%]">
+                            ${msgData.text}
+                            <div class="absolute top-0 -right-2 w-4 h-4 bg-blue-600 -skew-x-12 border-none -z-10 rounded-tr-sm"></div>
+                        </div>
+                        <span class="text-[10px] text-slate-500 mt-1 mr-2 font-medium">${formatTime(msgData.created_at)}</span>
+                    </div>
+                `);
+            } else {
+                container.insertAdjacentHTML('beforeend', `
+                    <div class="flex flex-col items-start max-w-[85%] group">
+                        <span class="text-[11px] font-bold text-slate-500 mb-1 ml-2 opacity-0 group-hover:opacity-100 transition-opacity">+${msgData.from}</span>
+                        <div class="p-3.5 bg-slate-800 rounded-2xl rounded-tl-sm text-[15px] leading-relaxed text-slate-200 border border-slate-700 shadow-md shadow-black/20 relative">
+                            ${msgData.text}
+                            <div class="absolute top-0 -left-2 w-4 h-4 bg-slate-800 skew-x-12 border-l border-t border-slate-700 -z-10 rounded-tl-sm"></div>
+                        </div>
+                        <span class="text-[10px] text-slate-500 mt-1 ml-2 font-medium">${formatTime(msgData.created_at)}</span>
+                    </div>
+                `);
+            }
+            if (autoScroll) {
+                const msgArea = document.getElementById('messageArea');
+                msgArea.scrollTop = msgArea.scrollHeight;
+            }
+        }
+
+        window.showTicketModal = function () {
+            if (!activeChatPhone) return;
+            document.getElementById('ticketModal').classList.remove('hidden');
+        };
+
+        window.closeTicketModal = function () {
+            document.getElementById('ticketModal').classList.add('hidden');
+        };
+
+        window.submitTicket = async function () {
+            if (!activeChatPhone) return;
+            const level = document.getElementById('ticketLevel').value;
+            const desc = document.getElementById('ticketDesc').value;
+
+            if (!desc.trim()) {
+                alert("Por favor ingrese una descripción para el ticket.");
+                return;
+            }
+
+            try {
+                const res = await fetch(`/api/contacts/${activeChatPhone}/tickets`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ level: level, description: desc })
+                });
+
+                if (res.ok) {
+                    closeTicketModal();
+                    document.getElementById('ticketDesc').value = '';
+
+                    // Inyectar una burbuja artificial indicando el ticket a nivel UI local
+                    const msgArea = document.getElementById('messageArea');
+                    msgArea.insertAdjacentHTML('beforeend', `
+                        <div class="flex flex-col items-center my-4 w-full">
+                            <span class="bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-4 py-2 rounded-full text-xs font-bold uppercase tracking-wide">
+                                <i class="fa-solid fa-ticket mr-1"></i> TICKET GENERADO PARA ${level}
+                            </span>
+                        </div>
+                    `);
+                    msgArea.scrollTop = msgArea.scrollHeight;
+                } else {
+                    alert('Error al generar el ticket');
+                }
+            } catch (e) {
+                console.error("Error:", e);
+                alert("Error de conexión");
+            }
+        };
+
+        window.editContactName = async function (phone) {
+            const newName = prompt("Ingrese el nombre completo para el contacto. Cancelar o dejar vacío ignora el cambio.");
+            if (newName && newName.trim() !== "") {
+                try {
+                    const res = await fetch(`/api/contacts/${phone}`, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ name: newName.trim() })
+                    });
+
+                    if (res.ok) {
+                        const data = await res.json();
+                        // Actualizar cabecera activa
+                        if (activeChatPhone === phone) {
+                            const headerName = document.getElementById('headerContactName');
+                            if (headerName) headerName.innerText = data.name;
+                        }
+                        // Forzar una reconexión para refrescar la lista lateral
+                        if (ws) {
+                            ws.close();
+                            setTimeout(connectWebSocket, 500);
+                        }
+                    } else {
+                        alert("Error al actualizar el nombre.");
+                    }
+                } catch (e) {
+                    console.error(e);
+                }
+            }
+        };
+
+        window.sendCurrentChat = async function () {
+            if (!activeChatPhone || !activeChatDept) return;
+
+            const textarea = document.getElementById('chatTextarea');
+            const text = textarea.value.trim();
+            if (!text) return;
+
+            textarea.disabled = true;
+            document.getElementById('btnSendChat').disabled = true;
+
+            try {
+                const res = await fetch('/api/send', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        phone_number: activeChatPhone,
+                        text: text,
+                        department: activeChatDept
+                    })
+                });
+
+                if (res.ok) {
+                    const dataRes = await res.json();
+
+                    // Limpiar text area e inyectar burbuja del AGENTE a nivel local
+                    textarea.value = '';
+                    injectMessageBubble({ direction: "outbound", text: text, from: activeChatPhone, created_at: dataRes.created_at });
+
+                    // Asegurarnos de guardar también este outbound en el history del elemento sidebar por si lo deseleccionan
+                    const sidebarEl = document.getElementById(`chat-${activeChatPhone}`);
+                    if (sidebarEl && sidebarEl.messagesHistory) {
+                        sidebarEl.messagesHistory.push({ direction: "outbound", text: text, from: activeChatPhone, name: sidebarEl.querySelector('#headerContactName')?.innerText, created_at: dataRes.created_at });
+                    }
+
+                } else {
+                    alert("Error enviando el mensaje. Verifica tus credenciales de Meta.");
+                }
+            } catch (e) {
+                console.error("Error:", e);
+                alert("Error de conexión");
+            } finally {
+                textarea.disabled = false;
+                document.getElementById('btnSendChat').disabled = false;
+                textarea.focus();
+            }
+        };
+
+        function updateCounter() {
+            document.getElementById('chatCount').innerText = messageCount;
+            if (messageCount > 0) {
+                document.getElementById('chatCount').classList.add('shadow-[0_0_10px_rgba(59,130,246,0.5)]');
+            } else {
+                document.getElementById('chatCount').classList.remove('shadow-[0_0_10px_rgba(59,130,246,0.5)]');
+            }
+        }
+
+        window.insertQuickReply = function (text) {
+            const textarea = document.getElementById('chatTextarea');
+            if (textarea.disabled) return;
+            textarea.value = text;
+            textarea.focus();
+        };
+
+        const style = document.createElement('style');
+        style.innerHTML = `
+            @keyframes fadeIn { from { opacity: 0; transform: translateY(15px); } to { opacity: 1; transform: translateY(0); } }
+            .animate-fade-in { animation: fadeIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+            .scrollbar-hide::-webkit-scrollbar { display: none; }
+            .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+        `;
+        document.head.appendChild(style);
+    </script>
+</body>
+
+</html>
